@@ -42,7 +42,7 @@ public class ZhihuLogin {
         List<NameValuePair> valuePairs = new LinkedList<NameValuePair>();
         valuePairs.add(new BasicNameValuePair("_xsrf", xsrfValue));
         valuePairs.add(new BasicNameValuePair("email", "785328089@qq.com"));
-        valuePairs.add(new BasicNameValuePair("password", "31577380"));
+        valuePairs.add(new BasicNameValuePair("password", ""));
         valuePairs.add(new BasicNameValuePair("remember_me", "true"));
         valuePairs.add(new BasicNameValuePair("captcha", captcha));
 
