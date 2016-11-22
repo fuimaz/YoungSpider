@@ -23,13 +23,15 @@ public class HttpResponseDecoder {
 
     public static Map<String,String> cookieMap = new HashMap<>();
 
+
+    // ***********************************getBytesStream*****************************************************************
     public static byte[] getBytesStream(CloseableHttpResponse closeableHttpResponse) {
         return getBytesStream(closeableHttpResponse, true);
     }
 
     // 这个是线程不安全的，但性能要好些
     public static byte[] getBytesStream(CloseableHttpResponse closeableHttpResponse, boolean isCloseResponse) {
-        if (checkEntityValid(closeableHttpResponse)) {
+        if (!checkEntityValid(closeableHttpResponse)) {
             return null;
         }
 
@@ -54,18 +56,8 @@ public class HttpResponseDecoder {
         }
     }
 
-    private static void closeResponse(CloseableHttpResponse closeableHttpResponse, boolean isCloseResponse) {
-        if (isCloseResponse) {
-            try {
-                closeableHttpResponse.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
     public static byte[] getBytesStreamAsync(CloseableHttpResponse closeableHttpResponse, boolean isCloseResponse) {
-        if (checkEntityValid(closeableHttpResponse)) {
+        if (!checkEntityValid(closeableHttpResponse)) {
             return null;
         }
 
@@ -86,6 +78,8 @@ public class HttpResponseDecoder {
         } catch (IOException e) {
             e.printStackTrace();
             return null;
+        } finally {
+            closeResponse(closeableHttpResponse, isCloseResponse);
         }
     }
 
@@ -93,8 +87,10 @@ public class HttpResponseDecoder {
         return getBytesStreamAsync(closeableHttpResponse, true);
     }
 
-    public static String getEntityString(CloseableHttpResponse closeableHttpResponse) {
-        if (checkEntityValid(closeableHttpResponse)) {
+    // ***********************************getEntityString***************************************************************
+
+    public static String getEntityString(CloseableHttpResponse closeableHttpResponse, boolean isCloseResponse) {
+        if (!checkEntityValid(closeableHttpResponse)) {
             return null;
         }
 
@@ -103,42 +99,38 @@ public class HttpResponseDecoder {
         } catch (IOException e) {
             e.printStackTrace();
             return null;
+        } finally {
+            closeResponse(closeableHttpResponse, isCloseResponse);
         }
     }
 
-    private static boolean checkEntityValid(CloseableHttpResponse closeableHttpResponse) {
-        if (closeableHttpResponse == null) {
-            logger.error("closeableHttpResponse is null pointer");
-            return false;
-        }
-
-        if (closeableHttpResponse.getStatusLine().getStatusCode() != 200) {
-            logger.error("closeableHttpResponse status code isn't 200, status code: {}",
-                    closeableHttpResponse.getStatusLine().getStatusCode());
-            return false;
-        }
-
-        if (closeableHttpResponse.getEntity() == null) {
-            logger.error("closeableHttpResponse's entity is null pointer");
-            return false;
-        }
-
-        return true;
+    public static String getEntityString(CloseableHttpResponse closeableHttpResponse) {
+        return getEntityString(closeableHttpResponse, true);
     }
+
+    // ***********************************getCookieString***************************************************************
 
     public static String getCookieString(CloseableHttpResponse closeableHttpResponse) {
         cookieMap.clear();
-        return getCookieString(closeableHttpResponse, cookieMap);
+        return getCookieString(closeableHttpResponse, cookieMap, true);
     }
 
     public static String getCookieStringAsync(CloseableHttpResponse closeableHttpResponse) {
         Map<String,String> tmpMap = new HashMap<>();
-        return getCookieString(closeableHttpResponse, tmpMap);
+        return getCookieString(closeableHttpResponse, tmpMap, true);
     }
 
-    private static String getCookieString(CloseableHttpResponse closeableHttpResponse, Map<String, String> map) {
+    // 提供该方法给外部，可以实现线程安全和性能更好的实现方式
+    public static String getCookieString(CloseableHttpResponse closeableHttpResponse,
+                                         Map<String, String> map,
+                                         boolean isCloseResponse) {
+        if (!checkEntityValid(closeableHttpResponse)) {
+            return null;
+        }
+
         Header headers[] = closeableHttpResponse.getHeaders("Set-Cookie");
         if (headers == null || headers.length == 0) {
+            closeResponse(closeableHttpResponse, isCloseResponse);
             logger.error("closeableHttpResponse's headers is empty");
             return null;
         }
@@ -168,6 +160,39 @@ public class HttpResponseDecoder {
             cookiesTmp.append(strTmp);
         }
 
+        closeResponse(closeableHttpResponse, isCloseResponse);
         return cookiesTmp.substring(0, cookiesTmp.length() - 2);
+    }
+
+    // ***********************************helper***************************************************************
+
+    private static boolean checkEntityValid(CloseableHttpResponse closeableHttpResponse) {
+        if (closeableHttpResponse == null) {
+            logger.error("closeableHttpResponse is null pointer");
+            return false;
+        }
+
+        if (closeableHttpResponse.getStatusLine().getStatusCode() != 200) {
+            logger.error("closeableHttpResponse status code isn't 200, status code: {}",
+                    closeableHttpResponse.getStatusLine().getStatusCode());
+            return false;
+        }
+
+        if (closeableHttpResponse.getEntity() == null) {
+            logger.error("closeableHttpResponse's entity is null pointer");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void closeResponse(CloseableHttpResponse closeableHttpResponse, boolean isCloseResponse) {
+        if (isCloseResponse) {
+            try {
+                closeableHttpResponse.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
